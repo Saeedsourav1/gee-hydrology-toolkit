@@ -1,229 +1,191 @@
-# Land Use / Land Cover (LULC) Classification for Rangpur, Bangladesh (2023)
 
-This repository presents a complete workflow for generating a supervised Land Use / Land Cover (LULC) classification for the Rangpur region of Bangladesh using **Landsat 8 Collection 2 Level-2 Surface Reflectance imagery** and machine-learning techniques in **Google Earth Engine (GEE)**.  
-The project implements a **Random Forest classifier** with 200 trees and includes pre-processing steps, spectral index generation, accuracy assessment, and class-wise area statistics.
+# 📌 **README — GEE Flood Point Extractor**
 
----
+## Overview
 
-## 🗺️ Study Area
+This repository provides a **Google Earth Engine (GEE) script** for generating **stratified validation points** for flood and non-flood areas using **Sentinel-1 SAR GRD (C-band)** imagery. The method computes **pre-flood** and **post-flood** radar backscatter differences (ΔVV), identifies inundated pixels, and extracts an equal number of random points from both classes.
 
-The study area covers the **Rangpur region of northwestern Bangladesh**.  
-The Area of Interest (AOI) boundary was uploaded to Google Earth Engine as a polygon FeatureCollection.
+The output is a clean, ready-to-use **CSV file** containing:
 
-The AOI extent (km²) is calculated in the script using:
+* `sample_id`
+* `longitude`
+* `latitude`
+* `flood` (1 = flood, 0 = non-flood)
 
-```js
-roi.geometry().area().divide(1e6)
-````
+This dataset is ideal for machine learning, flood model validation, or GIS-based analyses.
 
-A visualization of the AOI is provided in the `docs/` folder.
-
----
-
-## 🛰️ Data Sources
-
-### **Satellite Data**
-
-| Dataset                    | Description                                        | Link                                                                                                                                                                     |
-| -------------------------- | -------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| **LANDSAT/LC08/C02/T1_L2** | Landsat 8 Surface Reflectance Collection 2 Level-2 | [https://developers.google.com/earth-engine/datasets/catalog/LANDSAT_LC08_C02_T1_L2](https://developers.google.com/earth-engine/datasets/catalog/LANDSAT_LC08_C02_T1_L2) |
-
-**Filters Applied**
-
-* Date range: **2023-01-01 → 2024-01-01**
-* Cloud cover: **< 20%**
-* Region: AOI (Rangpur)
-
-### **Training Samples**
-
-Five land-cover classes were digitized manually inside GEE:
-
-1. Water Body
-2. Built-up
-3. Bareland
-4. Crops
-5. Vegetation
-
-Each class is stored as a FeatureCollection in the user's GEE Assets.
-Metadata descriptions are in `data/training_samples/README.md`.
+**Author:** *Saeed Sourav*
+**Language:** JavaScript (Google Earth Engine Code Editor)
 
 ---
 
-## 🌱 LULC Classification Scheme
+## ✨ **Key Features**
 
-| Class ID | Class Name | Description                        | Color     |
-| -------- | ---------- | ---------------------------------- | --------- |
-| 0        | Water Body | Rivers, wetlands, ponds            | `#002F6C` |
-| 1        | Built-up   | Infrastructure, settlements, roads | `#A65428` |
-| 2        | Bareland   | Exposed soil, fallow land          | `#F2B700` |
-| 3        | Crops      | Agricultural cropland              | `#2EAD95` |
-| 4        | Vegetation | Forest, natural vegetation         | `#7CFC00` |
-
----
-
-## 🔧 Methodology Overview
-
-A high-level summary of the workflow:
-
-1. **Load Landsat 8 SR imagery**
-2. **Filter by date** and **cloud cover**
-3. **Apply surface reflectance scaling**
-4. **Generate median composite**
-5. **Clip to AOI**
-6. Compute **NDVI**, **NDWI**, **NDBI** indices
-7. Merge training sample FeatureCollections
-8. Extract training/test pixels (80/20 split)
-9. Train **Random Forest (200 trees)**
-10. Classify the full image
-11. Compute accuracy metrics
-12. Calculate area per class (km²)
-13. Export outputs (GeoTIFF, CSV)
-
-
-A complete methodology document is available at:
-
-```
-docs/methodology.md
-```
+* Uses Sentinel-1 **SAR GRD VV polarization** (cloud-independent).
+* Performs **pre–post backscatter differencing** (ΔVV).
+* Generates a **flood mask** using a threshold-based approach.
+* Extracts **stratified, balanced random samples** (flood vs. non-flood).
+* Automatically exports results to **Google Drive (CSV)**.
+* AOI simplification prevents memory and timeout issues.
+* Fully reproducible and customizable.
 
 ---
 
-## 🧠 Algorithm Details
+## 🛰 **Satellite Data**
 
-### **Random Forest Classifier**
+**Sentinel-1 SAR GRD (C-band)**
+Collection ID: `COPERNICUS/S1_GRD`
 
-* Trees: **200**
-* Features used:
+Filtering parameters:
 
-  * Bands: SR_B1–SR_B7
-  * Indices: NDVI, NDWI, NDBI
-* Train/test split: **80% / 20%**
-
-### **Spectral Indices Used**
-
-```text
-NDVI = (B5 - B4) / (B5 + B4)
-NDWI = (B3 - B5) / (B3 + B5)
-NDBI = (B6 - B5) / (B6 + B5)
-```
-
-These indices improve class separability, especially between vegetation, water, and built-up areas.
+* **Instrument mode:** IW
+* **Pass:** DESCENDING
+* **Polarization:** VV
+* **Resolution:** 10 m
 
 ---
 
-## 📈 Accuracy Assessment
-
-Accuracy was evaluated using the **20% test set**:
-
-* Confusion Matrix
-* **Overall Accuracy (OA)**
-* **Kappa Coefficient**
-
-Insert your actual results into:
+## 📁 **Repository Structure**
 
 ```
-docs/accuracy_report.md
-```
-
----
-
-## 📊 Output Products
-
-All exported outputs are stored in:
-
-```
-results/
-```
-
-Includes:
-
-### **1. Final Classified LULC Map **
-
-A visualization of the LULC classification for 2023.
-
-### **2. Area Statistics (CSV)**
-
-Area (km²) for each LULC class, generated using pixel area calculations.
-
-### **3. Accuracy Metrics**
-
-Confusion matrix and model accuracy indicators.
-
----
-
-## 📂 Repository Structure
-
-```
-LULC-Rangpur-2023/
+gee-flood-point-extractor/
 │
 ├── src/
-│   └── lulc_classification.js
+│   └── flood_point_extractor.js        # Main GEE code
+│
+├── examples/
+│   └── example_output.csv             # Sample generated CSV (optional)
 │
 ├── docs/
-│   ├── methodology.md
-│   └── accuracy_report.md
+│   └── workflow_diagram.png           # Method overview (optional)
 │
-│
-├── data/
-│    └── roi/
-│         └── README.md
-│  
-│
-├── .gitignore
-├── LICENSE
 └── README.md
 ```
 
 ---
 
-## ▶️ How to Run This Project in Google Earth Engine
+## ⚙️ **How the Script Works**
 
-1. Open the GEE Code Editor:
-   [https://code.earthengine.google.com](https://code.earthengine.google.com)
+### **1. Load Area of Interest (AOI)**
 
-2. Import:
+User provides a FeatureCollection asset.
+AOI is simplified to avoid memory overflow.
 
-   * `lulc_classification.js` script
-   * ROI FeatureCollection
-   * Training sample FeatureCollections
+### **2. Load Sentinel-1 Pre- and Post-flood Images**
 
-3. Paste the script into GEE and run it.
+Median composites are prepared for:
 
-4. Outputs:
+* Pre-flood period (March–April 2022)
+* Post-flood period (June 2022)
 
-   * Classified raster exported to Google Drive
-   * CSV table of class-wise area statistics
-   * Console shows accuracy metrics
+### **3. Compute ΔVV (Backscatter Difference)**
+
+`ΔVV = VV_pre – VV_post`
+Flooded areas show strong backscatter drops.
+
+### **4. Generate Flood Mask**
+
+Flood = ΔVV > threshold
+Default threshold = **2 dB**
+
+### **5. Stratified Random Sampling**
+
+Balanced sample extraction:
+
+* 500 flood points
+* 500 non-flood points
+
+Sampling preserves:
+
+* Randomness
+* Equal representation
+* Spatial geometry
+
+### **6. Extract Coordinates**
+
+Each point receives:
+
+* Sample ID
+* Latitude / Longitude
+
+### **7. Export Output as CSV**
+
+The dataset is automatically saved to Google Drive.
 
 ---
 
-## 🤝 Contributions
+## 📤 **Exported CSV Format**
 
-Contributions, pull requests, or suggestions are welcome.
-Feel free to open an issue if you have ideas for improving the workflow.
+| sample_id | longitude | latitude | flood |
+| --------- | --------- | -------- | ----- |
+| abc123    | 90.1234   | 24.5678  | 1     |
+| xyz987    | 90.2345   | 24.6789  | 0     |
 
 ---
 
-## 📄 License
+## 🔧 **User Parameters**
 
-This project is released under the **MIT License**.
-See the full text in:
+You may edit these at the top of the script:
 
+```javascript
+var preStart  = '2022-03-01';
+var preEnd    = '2022-04-15';
+var postStart = '2022-06-16';
+var postEnd   = '2022-06-30';
+
+var vvDiffThreshold = 2.0;
+var pointsPerClass  = 500;
+var seed            = 42;
+var scale           = 10;
+var exportFolder    = 'GEE_Exports';
+var exportFileName  = 'Flood_NonFlood_Samples_2022';
 ```
-LICENSE
-```
+
+---
+
+## ▶️ **How to Run in Google Earth Engine**
+
+1. Open: [https://code.earthengine.google.com](https://code.earthengine.google.com)
+2. Create a new script.
+3. Paste the `flood_point_extractor.js` code.
+4. Replace your AOI asset:
+
+   ```javascript
+   var aoi = ee.FeatureCollection("users/your_username/your_AOI");
+   ```
+5. Click **Run**.
+6. Go to the **Tasks** panel → click **Run** to start CSV export.
+7. Download from Google Drive.
+
+---
+
+## ⚠️ Notes & Limitations
+
+* If the AOI contains very little flood area, fewer flood points may be produced than requested.
+* Map preview layers may time out for large AOIs, but **exports remain unaffected**.
+* ΔVV threshold may require tuning depending on surface type and flood severity.
 
 ---
 
 ## 📚 Citation
 
-If you use or reference this repository:
+If this script contributes to your research, please cite:
 
-```
-[Saeed Sourav]. (2023). Land Use / Land Cover Classification for Rangpur, Bangladesh using Landsat 8 and Random Forest. GitHub Repository.
-```
+> Sourav, S. (2025). *GEE Flood Point Extractor: Sentinel-1 SAR-based stratified sampling workflow for flood validation dataset generation*.
+> GitHub Repository.
+
+Also acknowledge:
+
+* Sentinel-1 SAR Mission
+* Google Earth Engine
 
 ---
 
-# 🎉 Thank you for exploring this repository!
+## 📬 Contact
+
+For improvements, suggestions, or troubleshooting:
+**Saeed Sourav** — Civil Engineer & GIS Analyst
+(Insert your GitHub profile URL or email here.)
+
+---
 

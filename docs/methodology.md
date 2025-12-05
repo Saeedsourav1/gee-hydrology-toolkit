@@ -1,227 +1,220 @@
-# Methodology for Land Use / Land Cover (LULC) Classification  
-### Rangpur Region, Bangladesh – 2023  
-This document provides a detailed description of the workflow used to produce the LULC map for the Rangpur region using Landsat 8 Surface Reflectance data in Google Earth Engine (GEE). The methodology follows a supervised classification framework integrating spectral indices, user-digitized training samples, machine learning, and statistical validation.
+# **Methodology: Flood Point Extraction Using Sentinel-1 SAR in Google Earth Engine**
+
+## **1. Introduction**
+
+This document describes the methodology implemented in the **GEE Flood Point Extractor** script, which automates the generation of stratified random validation points representing **flood** and **non-flood** classes using **Sentinel-1 SAR GRD (C-band)** imagery.
+
+The workflow is designed to:
+
+* Detect flooded areas from radar backscatter changes,
+* Produce balanced training/validation samples, and
+* Export the results in CSV format for machine learning, GIS analysis, or flood model validation.
 
 ---
 
-## 1. Study Area
-The Area of Interest (AOI) covers the Rangpur region of northwestern Bangladesh.  
-The AOI boundary was imported into GEE as a polygon shapefile and clipped to delineate the study region.
+## **2. Input Data**
 
-The AOI area was computed using:
+### **2.1 Sentinel-1 SAR GRD**
 
-```js
-roi.geometry().area().divide(1e6)
-````
+The script uses the image collection:
 
-**Unit:** square kilometers (km²)
+**`COPERNICUS/S1_GRD`**
 
----
+Filtered by:
 
-## 2. Data Source
+* Instrument Mode: **IW**
+* Orbit Direction: **Descending**
+* Polarization: **VV**
+* Spatial Resolution: **10 m**
 
-### 2.1 Satellite Data
+### **2.2 Temporal Windows**
 
-The analysis uses **Landsat 8 Collection 2 Level-2 (Surface Reflectance)** imagery:
+Two time windows are defined:
 
-* Dataset ID: `LANDSAT/LC08/C02/T1_L2`
-* Date range: **1 January 2023 – 1 January 2024**
-* Cloud cover threshold: **< 20%**
+| Stage          | Dates                    |
+| -------------- | ------------------------ |
+| **Pre-Flood**  | 01 March – 15 April 2022 |
+| **Post-Flood** | 16 June – 30 June 2022   |
 
-This dataset provides atmospherically corrected Surface Reflectance and is suitable for land-cover applications.
+Median composites are used to reduce noise (speckle) and ensure temporal consistency.
 
-### 2.2 Ancillary Data
+### **2.3 Area of Interest (AOI)**
 
-User-generated training samples representing five land-cover classes were uploaded as FeatureCollections:
-
-1. Water Body
-2. Built-up
-3. Bareland
-4. Crops
-5. Vegetation
+The AOI must be supplied by the user as a **FeatureCollection**.
+AOI geometry is simplified (`simplify(100)`) to avoid Earth Engine memory timeouts during large-scale operations.
 
 ---
 
-## 3. Pre-processing Workflow
+## **3. Methodological Workflow**
 
-The Landsat 8 Level-2 SR images were pre-processed in several steps:
-
-### **3.1 Filtering**
-
-* Filter by AOI
-* Filter by acquisition date
-* Filter by cloud cover < 20%
-
-### **3.2 Surface Reflectance Scaling**
-
-Landsat SR values were rescaled using the standard USGS scaling factor:
-
-```
-Reflectance = DN × 0.0000275 − 0.2
-```
-
-### **3.3 Image Compositing**
-
-A **median composite** was generated to reduce atmospheric noise and cloud contamination.
-
-### **3.4 Clipping**
-
-The composite image was clipped to the AOI boundary.
+The overall workflow consists of six core steps:
 
 ---
 
-## 4. Spectral Feature Engineering
+### **Step 1: Preprocessing and AOI Handling**
 
-To enhance class separability, three commonly used spectral indices were computed and added as additional bands.
+The AOI is:
 
-### **4.1 NDVI**
+1. Loaded as a FeatureCollection,
+2. Optional simplification is applied to reduce geometric complexity,
+3. Recentered on the map,
+4. Used to clip all image collections.
 
-Highlights vegetation cover.
-
-```
-NDVI = (B5 − B4) / (B5 + B4)
-```
-
-### **4.2 NDWI**
-
-Enhances water bodies.
-
-```
-NDWI = (B3 − B5) / (B3 + B5)
-```
-
-### **4.3 NDBI**
-
-Used to detect built-up areas.
-
-```
-NDBI = (B6 − B5) / (B6 + B5)
-```
-
-The final feature stack included:
-
-* 7 Landsat SR bands
-* NDVI
-* NDWI
-* NDBI
-
-Total = **10 predictor bands**
+This ensures computational efficiency and reduces data load.
 
 ---
 
-## 5. Training Dataset Preparation
+### **Step 2: Loading Sentinel-1 Data**
 
-Training data for the five LULC classes were merged into a single FeatureCollection:
+Pre-flood and post-flood VV images are prepared by:
 
-```js
-var training = vegetation
-  .merge(Bareland)
-  .merge(Water_Body)
-  .merge(Built_up)
-  .merge(crops);
-```
+* Filtering by date,
+* Filtering by AOI,
+* Selecting VV polarization,
+* Computing **median** composite to reduce speckle.
 
-A stratified sampling of image pixels was performed at **30 m resolution**.
+This produces two clean surface backscatter layers suitable for differencing.
 
 ---
 
-## 6. Model Development
+### **Step 3: ΔVV Calculation**
 
-### **6.1 Train–Test Split**
+Flood detection relies on the strong reduction in radar backscatter caused by water surfaces.
 
-Training samples were randomly partitioned:
+The script computes:
 
-* **80%** – Model training
-* **20%** – Model validation
+[
+\Delta VV = VV_{pre} - VV_{post}
+]
 
-### **6.2 Classification Algorithm**
+A large positive ΔVV indicates water emergence (flooding).
 
-A **Random Forest** classifier was used:
-
-* Number of Trees: **200**
-* Input features: 10 predictor bands
-* Class label: `"Class"`
-
-Random Forest is robust to noise, handles nonlinear separations, and performs well with multi-spectral data.
-
-### **6.3 Prediction**
-
-The trained classifier was applied to the full image stack to generate the final LULC map.
+ΔVV is visualized using a diverging color palette for interpretation.
 
 ---
 
-## 7. Accuracy Assessment
+### **Step 4: Flood Mask Generation**
 
-Accuracy metrics were computed using the independent **20% test set**.
+A threshold-based rule is applied:
 
-Outputs included:
+[
+\text{Flood} = (\Delta VV > \text{threshold})
+]
 
-* Confusion Matrix
-* **Overall Accuracy (OA)**
-* **Kappa Coefficient**
+Default threshold = **2 dB**
 
-These metrics quantify classification reliability and agreement beyond chance.
+The resulting binary raster:
 
----
+* `1` = Flood
+* `0` = Non-Flood
 
-## 8. Area Estimation
-
-Area per class (in km²) was derived using pixel area:
-
-```js
-areaImage = ee.Image.pixelArea().divide(1e6)
-```
-
-A grouped reducer summarized total area for each LULC class.
-Outputs were converted to a FeatureCollection and exported as a CSV table.
+Only positive detections are retained using `selfMask()`, improving map clarity.
 
 ---
 
-## 9. Output Products
+### **Step 5: Stratified Random Sampling**
 
-### **9.1 LULC Map (GeoTIFF)**
+Balanced sample extraction is essential for machine learning and model validation.
 
-Exported to Google Drive using:
+The script uses:
 
-```js
-Export.image.toDrive({
-  image: classified.byte(),
-  ...
+```javascript
+classImage.stratifiedSample({
+    classBand: "flood",
+    classValues: [0, 1],
+    classPoints: [pointsPerClass, pointsPerClass],
+    ...
 });
 ```
 
-### **9.2 Area Statistics (CSV)**
+This ensures:
 
-Contains class-wise area (km²).
+* Equal representation of both classes,
+* True random sampling over the AOI,
+* No spatial bias,
+* Automatic geometry inclusion.
 
-### **9.3 Accuracy Report**
-
-Confusion matrix + OA + Kappa.
-
----
-
-## 10. Workflow Diagram
-
-See `docs/flowchart.png` for the graphical representation of the complete methodology.
+Each sampled point includes full geographic coordinates.
 
 ---
 
-## 11. Reproducibility
+### **Step 6: Attribute Assignment and Export**
 
-All steps are fully reproducible within the Google Earth Engine environment.
-Source code is available in:
+The script assigns:
 
-```
-src/lulc_classification.js
-```
+* **longitude**,
+* **latitude**,
+* **unique sample_id**,
+* **flood class label**
+
+Finally, the dataset is exported as a **CSV file to Google Drive**.
+
+CSV columns:
+| sample_id | longitude | latitude | flood |
+
+This makes the result compatible with:
+
+* ArcGIS / QGIS
+* Python ML workflows (scikit-learn, XGBoost)
+* Remote sensing validation
+* Hydrological modelling
 
 ---
 
-## 12. References
+## **4. Advantages of This Method**
 
-* USGS Landsat Collection 2 Documentation
-* GEE Developer Guide: Image Preprocessing
-* Breiman, L. (2001). Random Forests. Machine Learning.
+### ✔ Cloud-Independent Flood Detection
 
-```
+SAR penetrates cloud cover and is ideal for monsoon flood monitoring.
+
+### ✔ Balanced Sampling
+
+Ensures unbiased training/validation datasets.
+
+### ✔ Automated Workflow
+
+Fully reproducible in the GEE environment.
+
+### ✔ Efficient Computation
+
+Simplifies AOI and minimizes memory overhead.
+
+### ✔ Export-Ready Output
+
+CSV structure compatible with any GIS/ML pipeline.
+
+---
+
+## **5. Limitations**
+
+* Threshold-based flood classification may require tuning for different surface conditions.
+* Sampling balance depends on available flood pixels; small flood extents may produce fewer points than requested.
+* Map visualization layers may time out for large AOIs (does not affect export).
+
+---
+
+## **6. Recommended Adjustments**
+
+Users may consider modifying:
+
+* Flood threshold (`vvDiffThreshold`)
+* Sampling density (`pointsPerClass`)
+* Pre/post flood dates
+* AOI geometry resolution
+* Use of multilooking or speckle filters (if needed)
+
+---
+
+## **7. Citation**
+
+If this workflow or script is used in research or publication, please cite:
+
+> Sourav, S. (2025). *GEE Flood Point Extractor: Sentinel-1 SAR-based stratified sampling workflow for flood validation data generation.*
+
+Also cite:
+
+* ESA Sentinel-1 SAR mission
+* Google Earth Engine
+
+---
 
