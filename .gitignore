@@ -1,0 +1,97 @@
+# ============================================================
+# GEE Flood Point Extractor - .gitignore
+# Author: Saeed Sourav
+# ============================================================
+
+# -----------------------------
+# OS / System Files
+# -----------------------------
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# -----------------------------
+# Editor / IDE Settings
+# -----------------------------
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+
+# -----------------------------
+# Python Cache (if used later)
+# -----------------------------
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# -----------------------------
+# Node / MkDocs Build Files
+# (site/ should not be committed)
+# -----------------------------
+site/
+node_modules/
+
+# -----------------------------
+# Logs
+# -----------------------------
+*.log
+
+# -----------------------------
+# Temporary Files / Backups
+# -----------------------------
+*.tmp
+*.bak
+*.swp
+*.swo
+*~
+
+# -----------------------------
+# Jupyter Notebook Checkpoints
+# -----------------------------
+.ipynb_checkpoints/
+
+# -----------------------------
+# GIS Large Files (optional)
+# Uncomment if storing geodata locally
+# -----------------------------
+*.tif
+*.tiff
+*.img
+*.zip
+*.rar
+*.7z
+*.gpkg
+*.shp
+*.shx
+*.dbf
+*.prj
+*.xml
+*.kmz
+*.kml
+
+# -----------------------------
+# Data Folder (optional)
+# Uncomment if you DON'T want to track data/
+# -----------------------------
+# data/
+
+# -----------------------------
+# Results Folder
+# Uncomment if results are large and shouldn't be versioned
+# -----------------------------
+# results/
+
+# -----------------------------
+# Build Artifacts
+# -----------------------------
+dist/
+build/
+
+# -----------------------------
+# OS-Specific
+# -----------------------------
+ehthumbs.db
+$RECYCLE.BIN/
+
